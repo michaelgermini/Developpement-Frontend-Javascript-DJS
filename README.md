@@ -2,7 +2,16 @@
 
 **Module de formation - Haute École Arc Ingénierie**
 
+[![Deploy on Vercel](https://img.shields.io/badge/Deploy%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://developpement-frontend-javascript-d.vercel.app/)
+[![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Live-blue?style=for-the-badge&logo=github)](https://michaelgermini.github.io/Developpement-Frontend-Javascript-DJS/)
+
 Un projet complet d'apprentissage du développement frontend moderne avec JavaScript, TypeScript et React.
+
+## 🌐 **Démo en ligne**
+
+**[🎯 Voir la démo live](https://developpement-frontend-javascript-d.vercel.app/)**
+
+*Application déployée et fonctionnelle avec tous les modules d'apprentissage interactifs*
 
 ## 📋 Description
 
@@ -28,6 +37,10 @@ Ce projet couvre l'ensemble des concepts de développement frontend JavaScript/T
 - **CSS3** - Styles modernes et responsive
 
 ## 🚀 Installation et Démarrage
+
+### 🌐 **Déploiements en ligne**
+- **[Vercel](https://developpement-frontend-javascript-d.vercel.app/)** - Déploiement principal
+- **[GitHub Pages](https://michaelgermini.github.io/Developpement-Frontend-Javascript-DJS/)** - Déploiement alternatif
 
 ### Prérequis
 - Node.js (version 16 ou supérieure)
