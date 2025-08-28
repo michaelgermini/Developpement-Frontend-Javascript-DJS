@@ -35,19 +35,21 @@
     "functional-programming"
   ],
   "author": {
-    "name": "Haute École Arc Ingénierie",
-    "email": "contact@he-arc.ch",
+    "name": "Michael Germini",
+    "email": "michael@germini.info",
     "url": "https://www.he-arc.ch"
   },
+  "institution": "Haute École Arc Ingénierie",
+  "course": "Module DJS - Développement Frontend JavaScript",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/djs-frontend-development.git"
+    "url": "https://github.com/michaelgermini/Developpement-Frontend-Javascript-DJS.git"
   },
   "bugs": {
-    "url": "https://github.com/your-username/djs-frontend-development/issues"
+    "url": "https://github.com/michaelgermini/Developpement-Frontend-Javascript-DJS/issues"
   },
-  "homepage": "https://github.com/your-username/djs-frontend-development#readme",
+  "homepage": "https://github.com/michaelgermini/Developpement-Frontend-Javascript-DJS#readme",
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",

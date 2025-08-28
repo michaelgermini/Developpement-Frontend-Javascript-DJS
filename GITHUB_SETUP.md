@@ -222,26 +222,26 @@ The repository includes 30+ custom labels for:
 
 ## 🚀 Getting Started
 
-### For Contributors
-1. **Fork the repository**
-2. **Create a feature branch**
-3. **Make your changes**
+### For Students (Classmates)
+1. **Fork the repository** to work on your own version
+2. **Create a feature branch** for your contributions
+3. **Make your changes** following the coding standards
 4. **Follow the contribution guidelines**
-5. **Submit a pull request**
+5. **Submit a pull request** for review
 
-### For Maintainers
-1. **Review automated reports**
-2. **Monitor community engagement**
-3. **Update educational content**
-4. **Maintain code quality standards**
-5. **Foster community growth**
+### For Course Instructors
+1. **Review student work** and provide feedback
+2. **Monitor learning progress** through the analytics
+3. **Use learning modules** in your courses
+4. **Suggest improvements** to educational content
+5. **Share with other students** as examples
 
-### For Educators
-1. **Use learning modules in courses**
-2. **Contribute educational content**
-3. **Provide feedback on examples**
-4. **Suggest improvements**
-5. **Share with students**
+### For Fellow Students
+1. **Study the examples** in each learning module
+2. **Practice with the interactive components**
+3. **Ask questions** through GitHub Issues
+4. **Share your own examples** and improvements
+5. **Collaborate on learning** together
 
 ## 📈 Success Metrics
 

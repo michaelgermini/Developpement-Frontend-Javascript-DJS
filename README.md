@@ -143,9 +143,13 @@ Les contributions sont les bienvenues ! Pour contribuer :
 
 Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
 
-## 👨‍🏫 Auteur
+## 👨‍🎓 Étudiant
 
-**Haute École Arc Ingénierie** - Module DJS (Développement Frontend JavaScript)
+**Michael Germini** - [Haute École Arc Ingénierie](https://www.he-arc.ch)
+
+**Module DJS** - Développement Frontend JavaScript
+
+*Projet réalisé dans le cadre du module DJS à la Haute École Arc Ingénierie*
 
 ## 🙏 Remerciements
 
