@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { DOMExamples } from './components/DOMExamples'
 import { EventHandling } from './components/EventHandling'
 import { FunctionalProgramming } from './components/FunctionalProgramming'
