@@ -36,10 +36,10 @@ Ce projet couvre l'ensemble des concepts de développement frontend JavaScript/T
 ### Installation
 ```bash
 # Cloner le repository
-git clone https://github.com/votre-username/djs-frontend-development.git
+git clone https://github.com/michaelgermini/Developpement-Frontend-Javascript-DJS.git
 
 # Accéder au dossier
-cd djs-frontend-development
+cd Developpement-Frontend-Javascript-DJS
 
 # Installer les dépendances
 npm install

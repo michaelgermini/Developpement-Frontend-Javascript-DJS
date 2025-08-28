@@ -1,0 +1,32 @@
+# Development files
+.husky/
+.github/
+node_modules/
+*.log
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build artifacts
+dist/
+build/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git files
+.git/
+.gitignore
+
+# Documentation (optional - keep if you want them in the repo)
+# README.md
+# CONTRIBUTING.md
+# LICENSE
