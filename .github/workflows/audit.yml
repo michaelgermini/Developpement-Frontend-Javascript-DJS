@@ -1,0 +1,289 @@
+name: Project Audit
+
+on:
+  schedule:
+    - cron: '0 9 * * 1' # Every Monday at 9 AM
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate comprehensive audit report
+        run: |
+          echo "## Comprehensive Project Audit" > audit-report.md
+          echo "" >> audit-report.md
+          echo "**Audit Date:** $(date)" >> audit-report.md
+          echo "**Branch:** ${{ github.ref }}" >> audit-report.md
+          echo "**Commit:** ${{ github.sha }}" >> audit-report.md
+          echo "" >> audit-report.md
+          
+          echo "### 🔍 Project Overview" >> audit-report.md
+          echo "" >> audit-report.md
+          echo "**Project Name:** $(jq -r '.name' package.json)" >> audit-report.md
+          echo "**Version:** $(jq -r '.version' package.json)" >> audit-report.md
+          echo "**Description:** $(jq -r '.description' package.json)" >> audit-report.md
+          echo "**License:** $(jq -r '.license' package.json)" >> audit-report.md
+          echo "" >> audit-report.md
+
+      - name: Audit code quality
+        run: |
+          echo "### 📝 Code Quality Audit" >> audit-report.md
+          echo "" >> audit-report.md
+          
+          # Count files and lines
+          ts_files=$(find src/ -name "*.ts" -o -name "*.tsx" | wc -l)
+          js_files=$(find src/ -name "*.js" -o -name "*.jsx" | wc -l)
+          css_files=$(find src/ -name "*.css" | wc -l)
+          md_files=$(find . -name "*.md" | wc -l)
+          
+          echo "**File Counts:**" >> audit-report.md
+          echo "- TypeScript files: $ts_files" >> audit-report.md
+          echo "- JavaScript files: $js_files" >> audit-report.md
+          echo "- CSS files: $css_files" >> audit-report.md
+          echo "- Markdown files: $md_files" >> audit-report.md
+          echo "" >> audit-report.md
+          
+          # Count lines of code
+          ts_lines=$(find src/ -name "*.ts" -o -name "*.tsx" -exec wc -l {} + | tail -1 | awk '{print $1}')
+          css_lines=$(find src/ -name "*.css" -exec wc -l {} + | tail -1 | awk '{print $1}')
+          md_lines=$(find . -name "*.md" -exec wc -l {} + | tail -1 | awk '{print $1}')
+          
+          echo "**Lines of Code:**" >> audit-report.md
+          echo "- TypeScript: $ts_lines" >> audit-report.md
+          echo "- CSS: $css_lines" >> audit-report.md
+          echo "- Documentation: $md_lines" >> audit-report.md
+          echo "" >> audit-report.md
+          
+          # Check code quality
+          if npm run lint; then
+            echo "**Linting:** ✅ Passed" >> audit-report.md
+          else
+            echo "**Linting:** ❌ Failed" >> audit-report.md
+          fi
+          
+          if npm run type-check; then
+            echo "**TypeScript:** ✅ Passed" >> audit-report.md
+          else
+            echo "**TypeScript:** ❌ Failed" >> audit-report.md
+          fi
+          
+          if npm run build; then
+            echo "**Build:** ✅ Successful" >> audit-report.md
+          else
+            echo "**Build:** ❌ Failed" >> audit-report.md
+          fi
+          echo "" >> audit-report.md
+
+      - name: Audit dependencies
+        run: |
+          echo "### 📦 Dependency Audit" >> audit-report.md
+          echo "" >> audit-report.md
+          
+          # Count dependencies
+          prod_deps=$(npm list --prod --depth=0 | grep -c '├──' || echo "0")
+          dev_deps=$(npm list --dev --depth=0 | grep -c '├──' || echo "0")
+          
+          echo "**Dependency Counts:**" >> audit-report.md
+          echo "- Production dependencies: $prod_deps" >> audit-report.md
+          echo "- Development dependencies: $dev_deps" >> audit-report.md
+          echo "" >> audit-report.md
+          
+          # Check for outdated dependencies
+          outdated_output=$(npm outdated --depth=0 2>/dev/null || echo "All dependencies are up to date")
+          echo "**Outdated Dependencies:**" >> audit-report.md
+          echo "\`\`\`" >> audit-report.md
+          echo "$outdated_output" >> audit-report.md
+          echo "\`\`\`" >> audit-report.md
+          echo "" >> audit-report.md
+          
+          # Security audit
+          echo "**Security Audit:**" >> audit-report.md
+          audit_output=$(npm audit --audit-level=moderate 2>&1 || echo "No security vulnerabilities found")
+          echo "\`\`\`" >> audit-report.md
+          echo "$audit_output" >> audit-report.md
+          echo "\`\`\`" >> audit-report.md
+          echo "" >> audit-report.md
+
+      - name: Audit educational content
+        run: |
+          echo "### 🎓 Educational Content Audit" >> audit-report.md
+          echo "" >> audit-report.md
+          
+          # Check learning modules
+          echo "**Learning Modules:**" >> audit-report.md
+          modules=("DOMExamples" "EventHandling" "FunctionalProgramming" "APIIntegration" "Widgets2D" "TypeScriptExamples")
+          for module in "${modules[@]}"; do
+            if [ -f "src/components/${module}.tsx" ]; then
+              lines=$(wc -l < "src/components/${module}.tsx")
+              comments=$(grep -c "//" "src/components/${module}.tsx" || echo "0")
+              comment_ratio=$((comments * 100 / lines))
+              echo "- ✅ $module: $lines lines, ${comment_ratio}% comments" >> audit-report.md
+            else
+              echo "- ❌ $module: Missing" >> audit-report.md
+            fi
+          done
+          echo "" >> audit-report.md
+          
+          # Check interactive elements
+          interactive_count=$(grep -r "onClick\|onChange\|onSubmit" src/ | wc -l)
+          echo "**Interactive Elements:** $interactive_count event handlers" >> audit-report.md
+          
+          # Check for modern React patterns
+          hooks_count=$(grep -r "useState\|useEffect\|useCallback\|useMemo" src/ | wc -l)
+          echo "**React Hooks:** $hooks_count hook usages" >> audit-report.md
+          
+          # Check for TypeScript usage
+          ts_usage=$(grep -r "interface\|type\|:" src/ | wc -l)
+          echo "**TypeScript Usage:** $ts_usage type annotations" >> audit-report.md
+          echo "" >> audit-report.md
+
+      - name: Audit documentation
+        run: |
+          echo "### 📚 Documentation Audit" >> audit-report.md
+          echo "" >> audit-report.md
+          
+          # Check required documentation
+          required_docs=("README.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" "SECURITY.md" "CHANGELOG.md" "LICENSE")
+          echo "**Required Documentation:**" >> audit-report.md
+          for doc in "${required_docs[@]}"; do
+            if [ -f "$doc" ]; then
+              lines=$(wc -l < "$doc")
+              echo "- ✅ $doc: $lines lines" >> audit-report.md
+            else
+              echo "- ❌ $doc: Missing" >> audit-report.md
+            fi
+          done
+          echo "" >> audit-report.md
+          
+          # Check README quality
+          if [ -f "README.md" ]; then
+            readme_lines=$(wc -l < README.md)
+            sections=$(grep -c "^##" README.md)
+            echo "**README Quality:**" >> audit-report.md
+            echo "- Lines: $readme_lines" >> audit-report.md
+            echo "- Sections: $sections" >> audit-report.md
+            
+            if [ "$readme_lines" -gt 100 ]; then
+              echo "- Status: ✅ Comprehensive" >> audit-report.md
+            elif [ "$readme_lines" -gt 50 ]; then
+              echo "- Status: ⚠️ Adequate" >> audit-report.md
+            else
+              echo "- Status: ❌ Needs improvement" >> audit-report.md
+            fi
+          fi
+          echo "" >> audit-report.md
+
+      - name: Audit GitHub configuration
+        run: |
+          echo "### 🐙 GitHub Configuration Audit" >> audit-report.md
+          echo "" >> audit-report.md
+          
+          # Check workflows
+          workflow_count=$(find .github/workflows -name "*.yml" | wc -l)
+          echo "**GitHub Workflows:** $workflow_count workflows" >> audit-report.md
+          
+          # Check issue templates
+          template_count=$(find .github/ISSUE_TEMPLATE -name "*.md" | wc -l)
+          echo "**Issue Templates:** $template_count templates" >> audit-report.md
+          
+          # Check for CODEOWNERS
+          if [ -f ".github/CODEOWNERS" ]; then
+            echo "**CODEOWNERS:** ✅ Present" >> audit-report.md
+          else
+            echo "**CODEOWNERS:** ❌ Missing" >> audit-report.md
+          fi
+          
+          # Check for labels configuration
+          if [ -f ".github/labels.yml" ]; then
+            echo "**Labels Configuration:** ✅ Present" >> audit-report.md
+          else
+            echo "**Labels Configuration:** ❌ Missing" >> audit-report.md
+          fi
+          echo "" >> audit-report.md
+
+      - name: Audit performance and build
+        run: |
+          echo "### ⚡ Performance and Build Audit" >> audit-report.md
+          echo "" >> audit-report.md
+          
+          # Build the project
+          npm run build
+          
+          # Check build output
+          if [ -d "dist" ]; then
+            build_size=$(du -sh dist/ | cut -f1)
+            js_files=$(find dist/ -name "*.js" | wc -l)
+            css_files=$(find dist/ -name "*.css" | wc -l)
+            
+            echo "**Build Output:**" >> audit-report.md
+            echo "- Total size: $build_size" >> audit-report.md
+            echo "- JavaScript files: $js_files" >> audit-report.md
+            echo "- CSS files: $css_files" >> audit-report.md
+            
+            # Check for large files
+            large_files=$(find dist/ -type f -size +100k | wc -l)
+            if [ "$large_files" -eq 0 ]; then
+              echo "- Large files: ✅ None detected" >> audit-report.md
+            else
+              echo "- Large files: ⚠️ $large_files files > 100KB" >> audit-report.md
+            fi
+          else
+            echo "**Build Output:** ❌ Build failed" >> audit-report.md
+          fi
+          echo "" >> audit-report.md
+
+      - name: Generate audit summary
+        run: |
+          echo "### 📊 Audit Summary" >> audit-report.md
+          echo "" >> audit-report.md
+          
+          # Count audit results
+          pass_count=$(grep -c "✅" audit-report.md || echo "0")
+          fail_count=$(grep -c "❌" audit-report.md || echo "0")
+          warn_count=$(grep -c "⚠️" audit-report.md || echo "0")
+          
+          echo "**Audit Results:**" >> audit-report.md
+          echo "- ✅ Passed: $pass_count" >> audit-report.md
+          echo "- ❌ Failed: $fail_count" >> audit-report.md
+          echo "- ⚠️ Warnings: $warn_count" >> audit-report.md
+          echo "" >> audit-report.md
+          
+          if [ "$fail_count" -eq 0 ]; then
+            echo "**Overall Assessment:** ✅ Excellent" >> audit-report.md
+          elif [ "$fail_count" -le 2 ]; then
+            echo "**Overall Assessment:** ⚠️ Good with minor issues" >> audit-report.md
+          else
+            echo "**Overall Assessment:** ❌ Needs attention" >> audit-report.md
+          fi
+          echo "" >> audit-report.md
+          
+          echo "### 🎯 Recommendations" >> audit-report.md
+          echo "- Continue maintaining high code standards" >> audit-report.md
+          echo "- Regular dependency updates" >> audit-report.md
+          echo "- Monitor educational content quality" >> audit-report.md
+          echo "- Keep documentation comprehensive" >> audit-report.md
+          echo "- Regular security audits" >> audit-report.md
+          echo "" >> audit-report.md
+          
+          echo "### 📅 Next Audit" >> audit-report.md
+          echo "Scheduled for next Monday at 9 AM" >> audit-report.md
+
+      - name: Upload audit report
+        uses: actions/upload-artifact@v3
+        with:
+          name: audit-report
+          path: audit-report.md
+          retention-days: 90

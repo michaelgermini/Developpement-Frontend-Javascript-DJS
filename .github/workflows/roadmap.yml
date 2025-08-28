@@ -1,0 +1,425 @@
+name: Roadmap Management
+
+on:
+  schedule:
+    - cron: '0 8 1 * *' # First day of each month at 8 AM
+  workflow_dispatch:
+
+jobs:
+  generate-roadmap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Generate roadmap
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Get current issues and PRs
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'all',
+              per_page: 100
+            });
+            
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'all',
+              per_page: 100
+            });
+            
+            const { data: milestones } = await github.rest.issues.listMilestones({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'all'
+            });
+            
+            // Analyze current state
+            const openIssues = issues.filter(i => i.state === 'open');
+            const closedIssues = issues.filter(i => i.state === 'closed');
+            const openPRs = prs.filter(pr => pr.state === 'open');
+            const mergedPRs = prs.filter(pr => pr.merged_at);
+            
+            // Categorize issues by labels
+            const issueCategories = {};
+            openIssues.forEach(issue => {
+              issue.labels.forEach(label => {
+                if (!issueCategories[label.name]) {
+                  issueCategories[label.name] = [];
+                }
+                issueCategories[label.name].push(issue);
+              });
+            });
+            
+            // Get current date and plan next quarter
+            const currentDate = new Date();
+            const nextMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+            const nextQuarter = new Date(currentDate.getFullYear(), currentDate.getMonth() + 3, 1);
+            
+            // Generate roadmap
+            const roadmap = `## 🗺️ Project Roadmap - ${currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            
+            ### 📊 Current Status
+            
+            **Repository Health:**
+            - Open Issues: ${openIssues.length}
+            - Closed Issues: ${closedIssues.length}
+            - Open Pull Requests: ${openPRs.length}
+            - Merged Pull Requests: ${mergedPRs.length}
+            - Completion Rate: ${issues.length > 0 ? Math.round((closedIssues.length / issues.length) * 100) : 0}%
+            
+            ### 🎯 Immediate Priorities (Next 30 Days)
+            
+            ${generateImmediatePriorities(issueCategories, openPRs)}
+            
+            ### 🚀 Short-term Goals (Next Quarter)
+            
+            ${generateShortTermGoals(issueCategories, milestones)}
+            
+            ### 🎓 Educational Focus Areas
+            
+            ${generateEducationalGoals()}
+            
+            ### 🔧 Technical Improvements
+            
+            ${generateTechnicalGoals(issueCategories)}
+            
+            ### 📚 Documentation & Community
+            
+            ${generateCommunityGoals(issueCategories)}
+            
+            ### 📅 Timeline
+            
+            **Month 1 (${nextMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}):**
+            - Focus on immediate priorities
+            - Address critical bugs and issues
+            - Improve documentation
+            
+            **Month 2 (${new Date(nextMonth.getFullYear(), nextMonth.getMonth() + 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}):**
+            - Implement new features
+            - Enhance educational content
+            - Community outreach
+            
+            **Month 3 (${nextQuarter.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}):**
+            - Performance optimizations
+            - Advanced features
+            - Community growth
+            
+            ### 🎉 Success Metrics
+            
+            **Targets for Next Quarter:**
+            - Reduce open issues by 50%
+            - Increase contributor count by 25%
+            - Improve documentation coverage to 95%
+            - Achieve 90% test coverage
+            - Launch 2 new learning modules
+            
+            ### 💡 Strategic Initiatives
+            
+            ${generateStrategicInitiatives(issueCategories)}
+            
+            ### 🔄 Continuous Improvement
+            
+            - Weekly feedback collection
+            - Monthly roadmap reviews
+            - Quarterly goal assessments
+            - Annual strategic planning
+            
+            ---
+            
+            *This roadmap is automatically generated and updated monthly. For questions or suggestions, please create an issue with the \`roadmap\` label.*`;
+            
+            // Create or update roadmap issue
+            const roadmapTitle = `🗺️ Project Roadmap - ${currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
+            
+            // Check if roadmap issue already exists
+            const { data: existingIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: ['roadmap']
+            });
+            
+            if (existingIssues.length > 0) {
+              // Update existing roadmap
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingIssues[0].number,
+                title: roadmapTitle,
+                body: roadmap
+              });
+            } else {
+              // Create new roadmap
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: roadmapTitle,
+                body: roadmap,
+                labels: ['roadmap', 'planning', 'documentation']
+              });
+            }
+            
+            function generateImmediatePriorities(issueCategories, openPRs) {
+              const priorities = [];
+              
+              // Critical bugs
+              if (issueCategories['bug'] && issueCategories['bug'].length > 0) {
+                priorities.push('- **🐛 Critical Bug Fixes:** Address high-priority bugs affecting functionality');
+              }
+              
+              // Security issues
+              if (issueCategories['security']) {
+                priorities.push('- **🔒 Security Updates:** Address any security vulnerabilities');
+              }
+              
+              // Documentation gaps
+              if (issueCategories['documentation']) {
+                priorities.push('- **📚 Documentation:** Improve and expand project documentation');
+              }
+              
+              // Open PRs
+              if (openPRs.length > 0) {
+                priorities.push('- **🔀 Pull Request Reviews:** Review and merge pending contributions');
+              }
+              
+              // Educational content
+              if (issueCategories['education']) {
+                priorities.push('- **🎓 Educational Content:** Enhance learning materials and examples');
+              }
+              
+              return priorities.length > 0 ? priorities.join('\n') : '- **Maintenance:** Focus on code quality and stability improvements';
+            }
+            
+            function generateShortTermGoals(issueCategories, milestones) {
+              const goals = [];
+              
+              // Feature development
+              if (issueCategories['enhancement']) {
+                goals.push('- **✨ New Features:** Implement requested enhancements and improvements');
+              }
+              
+              // Performance improvements
+              if (issueCategories['performance']) {
+                goals.push('- **⚡ Performance:** Optimize application performance and loading times');
+              }
+              
+              // Accessibility improvements
+              if (issueCategories['accessibility']) {
+                goals.push('- **♿ Accessibility:** Improve accessibility compliance and user experience');
+              }
+              
+              // Community growth
+              goals.push('- **👥 Community:** Grow contributor base and improve community engagement');
+              
+              // Learning modules
+              goals.push('- **📖 Learning Modules:** Expand educational content with new examples');
+              
+              return goals.join('\n');
+            }
+            
+            function generateEducationalGoals() {
+              return [
+                '- **Interactive Examples:** Create more hands-on learning experiences',
+                '- **Progressive Difficulty:** Structure content from beginner to advanced',
+                '- **Real-world Applications:** Include practical use cases and scenarios',
+                '- **Code Quality:** Demonstrate best practices and clean code principles',
+                '- **Modern Patterns:** Showcase current JavaScript/TypeScript patterns',
+                '- **Performance Awareness:** Teach performance optimization techniques'
+              ].join('\n');
+            }
+            
+            function generateTechnicalGoals(issueCategories) {
+              const goals = [];
+              
+              // Code quality
+              goals.push('- **Code Quality:** Implement stricter linting and code standards');
+              
+              // Testing
+              if (issueCategories['testing']) {
+                goals.push('- **Testing:** Improve test coverage and testing strategies');
+              } else {
+                goals.push('- **Testing:** Establish comprehensive testing framework');
+              }
+              
+              // Build optimization
+              goals.push('- **Build Optimization:** Optimize build process and bundle size');
+              
+              // Dependencies
+              goals.push('- **Dependencies:** Keep dependencies updated and secure');
+              
+              // TypeScript
+              goals.push('- **TypeScript:** Enhance type safety and TypeScript usage');
+              
+              return goals.join('\n');
+            }
+            
+            function generateCommunityGoals(issueCategories) {
+              const goals = [];
+              
+              // Documentation
+              goals.push('- **Documentation:** Comprehensive guides and tutorials');
+              
+              // Contributing guidelines
+              goals.push('- **Contributing Guidelines:** Clear contribution process');
+              
+              // Code of conduct
+              goals.push('- **Code of Conduct:** Welcoming and inclusive community');
+              
+              // Mentorship
+              goals.push('- **Mentorship:** Support for new contributors');
+              
+              // Recognition
+              goals.push('- **Recognition:** Acknowledge and celebrate contributions');
+              
+              return goals.join('\n');
+            }
+            
+            function generateStrategicInitiatives(issueCategories) {
+              const initiatives = [];
+              
+              // Long-term vision
+              initiatives.push('- **Educational Platform:** Develop into a comprehensive learning platform');
+              
+              // Community building
+              initiatives.push('- **Community Hub:** Create a central hub for frontend developers');
+              
+              // Industry relevance
+              initiatives.push('- **Industry Alignment:** Keep content aligned with industry standards');
+              
+              // Innovation
+              initiatives.push('- **Innovation:** Explore emerging technologies and patterns');
+              
+              // Sustainability
+              initiatives.push('- **Sustainability:** Ensure long-term project viability');
+              
+              return initiatives.join('\n');
+            }
+
+  create-milestones:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create or update milestones
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const currentDate = new Date();
+            const nextMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+            const nextQuarter = new Date(currentDate.getFullYear(), currentDate.getMonth() + 3, 1);
+            const nextYear = new Date(currentDate.getFullYear() + 1, 0, 1);
+            
+            // Define milestones
+            const milestones = [
+              {
+                title: `v1.1 - ${nextMonth.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`,
+                description: 'Immediate improvements and bug fixes',
+                due_on: nextMonth.toISOString(),
+                state: 'open'
+              },
+              {
+                title: `v1.2 - ${nextQuarter.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`,
+                description: 'Feature enhancements and educational content',
+                due_on: nextQuarter.toISOString(),
+                state: 'open'
+              },
+              {
+                title: `v2.0 - ${nextYear.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`,
+                description: 'Major release with new features and improvements',
+                due_on: nextYear.toISOString(),
+                state: 'open'
+              }
+            ];
+            
+            // Get existing milestones
+            const { data: existingMilestones } = await github.rest.issues.listMilestones({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'all'
+            });
+            
+            // Create or update milestones
+            for (const milestone of milestones) {
+              const existing = existingMilestones.find(m => m.title === milestone.title);
+              
+              if (existing) {
+                // Update existing milestone
+                await github.rest.issues.updateMilestone({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  milestone_number: existing.number,
+                  title: milestone.title,
+                  description: milestone.description,
+                  due_on: milestone.due_on,
+                  state: milestone.state
+                });
+              } else {
+                // Create new milestone
+                await github.rest.issues.createMilestone({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: milestone.title,
+                  description: milestone.description,
+                  due_on: milestone.due_on,
+                  state: milestone.state
+                });
+              }
+            }
+
+  assign-issues-to-milestones:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assign issues to milestones
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Get current issues and milestones
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+            
+            const { data: milestones } = await github.rest.issues.listMilestones({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open'
+            });
+            
+            if (milestones.length === 0) return;
+            
+            // Assign issues to appropriate milestones based on labels and priority
+            for (const issue of issues) {
+              if (issue.milestone) continue; // Skip if already assigned
+              
+              let targetMilestone = null;
+              
+              // Check for priority labels
+              if (issue.labels.some(l => l.name === 'high-priority' || l.name === 'critical')) {
+                targetMilestone = milestones[0]; // First milestone (immediate)
+              } else if (issue.labels.some(l => l.name === 'enhancement' || l.name === 'feature')) {
+                targetMilestone = milestones[1] || milestones[0]; // Second milestone (short-term)
+              } else if (issue.labels.some(l => l.name === 'documentation' || l.name === 'education')) {
+                targetMilestone = milestones[1] || milestones[0]; // Second milestone (short-term)
+              } else {
+                targetMilestone = milestones[1] || milestones[0]; // Default to short-term
+              }
+              
+              if (targetMilestone) {
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  milestone: targetMilestone.number
+                });
+              }
+            }

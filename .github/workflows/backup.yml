@@ -1,0 +1,69 @@
+name: Backup Project
+
+on:
+  schedule:
+    - cron: '0 3 * * 0' # Every Sunday at 3 AM
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create backup archive
+        run: |
+          # Create timestamp for backup
+          TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+          
+          # Create backup directory
+          mkdir -p backup
+          
+          # Copy important files
+          cp -r src/ backup/
+          cp -r public/ backup/
+          cp package*.json backup/
+          cp tsconfig*.json backup/
+          cp vite.config.ts backup/
+          cp README.md backup/
+          cp CHANGELOG.md backup/
+          cp CONTRIBUTING.md backup/
+          cp CODE_OF_CONDUCT.md backup/
+          cp SECURITY.md backup/
+          cp LICENSE backup/
+          
+          # Create archive
+          tar -czf "djs-backup-${TIMESTAMP}.tar.gz" backup/
+          
+          echo "Backup created: djs-backup-${TIMESTAMP}.tar.gz"
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: project-backup
+          path: djs-backup-*.tar.gz
+          retention-days: 30
+
+      - name: Generate backup report
+        run: |
+          echo "## Project Backup Report" > backup-report.md
+          echo "" >> backup-report.md
+          echo "**Date:** $(date)" >> backup-report.md
+          echo "**Branch:** ${{ github.ref }}" >> backup-report.md
+          echo "**Commit:** ${{ github.sha }}" >> backup-report.md
+          echo "" >> backup-report.md
+          echo "### Files Backed Up:" >> backup-report.md
+          echo "- Source code (src/)" >> backup-report.md
+          echo "- Public assets (public/)" >> backup-report.md
+          echo "- Configuration files" >> backup-report.md
+          echo "- Documentation" >> backup-report.md
+          echo "" >> backup-report.md
+          echo "### Backup Size:" >> backup-report.md
+          du -sh djs-backup-*.tar.gz >> backup-report.md
+
+      - name: Upload backup report
+        uses: actions/upload-artifact@v3
+        with:
+          name: backup-report
+          path: backup-report.md

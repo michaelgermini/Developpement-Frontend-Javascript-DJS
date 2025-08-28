@@ -1,0 +1,426 @@
+name: Feedback Collection
+
+on:
+  schedule:
+    - cron: '0 10 * * 0' # Every Sunday at 10 AM
+  workflow_dispatch:
+
+jobs:
+  collect-feedback:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Generate feedback report
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Collect recent activity data
+            const { data: recentIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'all',
+              per_page: 100,
+              since: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+            });
+            
+            const { data: recentPRs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'all',
+              per_page: 100,
+              sort: 'updated',
+              direction: 'desc'
+            });
+            
+            const { data: contributors } = await github.rest.repos.listContributors({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            
+            // Analyze activity patterns
+            const issueTypes = {};
+            const prLabels = {};
+            const contributorActivity = {};
+            
+            recentIssues.forEach(issue => {
+              issue.labels.forEach(label => {
+                issueTypes[label.name] = (issueTypes[label.name] || 0) + 1;
+              });
+            });
+            
+            recentPRs.forEach(pr => {
+              pr.labels.forEach(label => {
+                prLabels[label.name] = (prLabels[label.name] || 0) + 1;
+              });
+              
+              contributorActivity[pr.user.login] = (contributorActivity[pr.user.login] || 0) + 1;
+            });
+            
+            // Generate feedback report
+            const report = `## 📊 Weekly Feedback Report
+            
+            **Report Date:** ${new Date().toLocaleDateString()}
+            **Period:** Last 7 days
+            
+            ### 📈 Activity Overview
+            
+            **Issues Created:** ${recentIssues.filter(i => i.created_at > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()).length}
+            **Pull Requests:** ${recentPRs.filter(pr => pr.created_at > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()).length}
+            **Active Contributors:** ${Object.keys(contributorActivity).length}
+            **Total Contributors:** ${contributors.length}
+            
+            ### 🏷️ Issue Categories
+            
+            ${Object.entries(issueTypes).map(([label, count]) => `- **${label}:** ${count}`).join('\n')}
+            
+            ### 🔄 PR Categories
+            
+            ${Object.entries(prLabels).map(([label, count]) => `- **${label}:** ${count}`).join('\n')}
+            
+            ### 👥 Top Contributors
+            
+            ${Object.entries(contributorActivity)
+              .sort(([,a], [,b]) => b - a)
+              .slice(0, 5)
+              .map(([user, count]) => `- **@${user}:** ${count} contributions`)
+              .join('\n')}
+            
+            ### 💡 Insights & Recommendations
+            
+            ${generateInsights(issueTypes, prLabels, contributorActivity)}
+            
+            ### 🎯 Action Items
+            
+            ${generateActionItems(issueTypes, prLabels, contributorActivity)}
+            
+            ### 📝 Feedback Collection
+            
+            We'd love to hear from you! Please share your thoughts:
+            
+            - **What's working well?** What aspects of the project are most helpful?
+            - **What could be improved?** Any pain points or areas for enhancement?
+            - **Feature requests:** What would you like to see added?
+            - **Documentation:** Is there anything unclear or missing?
+            - **Learning experience:** How has this project helped your learning?
+            
+            Reply to this issue with your feedback! 🙏`;
+            
+            // Create feedback issue
+            const { data: feedbackIssue } = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `📊 Weekly Feedback Report - ${new Date().toLocaleDateString()}`,
+              body: report,
+              labels: ['feedback', 'analytics', 'community']
+            });
+            
+            function generateInsights(issues, prs, activity) {
+              const insights = [];
+              
+              // Analyze issue patterns
+              if (issues['bug'] > issues['enhancement']) {
+                insights.push('- **Bug Focus:** More bug reports than enhancements - consider prioritizing stability');
+              }
+              
+              if (issues['question']) {
+                insights.push('- **Learning Support:** Questions indicate active learning - great community engagement');
+              }
+              
+              if (issues['documentation']) {
+                insights.push('- **Documentation Interest:** Documentation improvements show commitment to clarity');
+              }
+              
+              // Analyze PR patterns
+              if (prs['enhancement']) {
+                insights.push('- **Active Development:** Enhancement PRs show ongoing feature development');
+              }
+              
+              if (prs['education']) {
+                insights.push('- **Educational Focus:** Educational content contributions align with project goals');
+              }
+              
+              // Analyze contributor patterns
+              const activeContributors = Object.keys(activity).length;
+              if (activeContributors > 3) {
+                insights.push('- **Strong Community:** Multiple active contributors indicate healthy project growth');
+              } else if (activeContributors === 0) {
+                insights.push('- **Quiet Week:** No recent contributions - consider outreach or new initiatives');
+              }
+              
+              return insights.length > 0 ? insights.join('\n') : '- **Steady Progress:** Consistent activity patterns';
+            }
+            
+            function generateActionItems(issues, prs, activity) {
+              const actions = [];
+              
+              // Based on issue patterns
+              if (issues['bug'] > 5) {
+                actions.push('- **Bug Triage:** Review and prioritize bug fixes');
+              }
+              
+              if (issues['question'] > 3) {
+                actions.push('- **FAQ Creation:** Consider creating FAQ based on common questions');
+              }
+              
+              if (issues['documentation']) {
+                actions.push('- **Documentation Review:** Review and improve documentation based on feedback');
+              }
+              
+              // Based on PR patterns
+              if (prs['enhancement']) {
+                actions.push('- **Feature Planning:** Review enhancement requests and plan roadmap');
+              }
+              
+              if (prs['education']) {
+                actions.push('- **Educational Content:** Support and promote educational contributions');
+              }
+              
+              // Based on contributor patterns
+              if (Object.keys(activity).length === 0) {
+                actions.push('- **Community Outreach:** Engage with community to encourage contributions');
+                actions.push('- **Good First Issues:** Create beginner-friendly issues to attract new contributors');
+              }
+              
+              return actions.length > 0 ? actions.join('\n') : '- **Continue Current Approach:** Current patterns are positive';
+            }
+
+  analyze-engagement:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Analyze community engagement
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Get repository statistics
+            const { data: repo } = await github.rest.repos.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'all',
+              per_page: 100
+            });
+            
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'all',
+              per_page: 100
+            });
+            
+            const { data: contributors } = await github.rest.repos.listContributors({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            
+            // Calculate engagement metrics
+            const totalIssues = issues.length;
+            const openIssues = issues.filter(i => i.state === 'open').length;
+            const closedIssues = totalIssues - openIssues;
+            const totalPRs = prs.length;
+            const openPRs = prs.filter(pr => pr.state === 'open').length;
+            const mergedPRs = prs.filter(pr => pr.merged_at).length;
+            const totalContributors = contributors.length;
+            
+            // Calculate response times
+            const recentIssues = issues.filter(i => 
+              new Date(i.created_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+            );
+            
+            let totalResponseTime = 0;
+            let respondedIssues = 0;
+            
+            for (const issue of recentIssues) {
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number
+              });
+              
+              if (comments.length > 0) {
+                const firstComment = comments[0];
+                const responseTime = new Date(firstComment.created_at) - new Date(issue.created_at);
+                totalResponseTime += responseTime;
+                respondedIssues++;
+              }
+            }
+            
+            const avgResponseTime = respondedIssues > 0 ? totalResponseTime / respondedIssues : 0;
+            const avgResponseHours = Math.round(avgResponseTime / (1000 * 60 * 60));
+            
+            // Generate engagement report
+            const engagementReport = `## 📊 Community Engagement Analysis
+            
+            **Analysis Date:** ${new Date().toLocaleDateString()}
+            
+            ### 📈 Key Metrics
+            
+            **Repository Health:**
+            - Stars: ${repo.stargazers_count}
+            - Forks: ${repo.forks_count}
+            - Watchers: ${repo.watchers_count}
+            
+            **Issue Management:**
+            - Total Issues: ${totalIssues}
+            - Open Issues: ${openIssues}
+            - Closed Issues: ${closedIssues}
+            - Issue Closure Rate: ${totalIssues > 0 ? Math.round((closedIssues / totalIssues) * 100) : 0}%
+            
+            **Pull Request Activity:**
+            - Total PRs: ${totalPRs}
+            - Open PRs: ${openPRs}
+            - Merged PRs: ${mergedPRs}
+            - Merge Rate: ${totalPRs > 0 ? Math.round((mergedPRs / totalPRs) * 100) : 0}%
+            
+            **Community:**
+            - Total Contributors: ${totalContributors}
+            - Average Response Time: ${avgResponseHours} hours
+            - Response Rate: ${recentIssues.length > 0 ? Math.round((respondedIssues / recentIssues.length) * 100) : 0}%
+            
+            ### 🎯 Engagement Score
+            
+            ${calculateEngagementScore(repo, issues, prs, contributors, avgResponseHours)}
+            
+            ### 💡 Recommendations
+            
+            ${generateEngagementRecommendations(repo, issues, prs, contributors, avgResponseHours)}
+            
+            ### 📊 Trends
+            
+            ${analyzeTrends(issues, prs)}
+            
+            ### 🎉 Community Highlights
+            
+            ${generateCommunityHighlights(contributors, prs, issues)}`;
+            
+            // Create engagement report
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `📊 Community Engagement Report - ${new Date().toLocaleDateString()}`,
+              body: engagementReport,
+              labels: ['analytics', 'community', 'engagement']
+            });
+            
+            function calculateEngagementScore(repo, issues, prs, contributors, responseTime) {
+              let score = 0;
+              let maxScore = 100;
+              
+              // Repository metrics (30 points)
+              score += Math.min(repo.stargazers_count * 2, 15);
+              score += Math.min(repo.forks_count * 3, 15);
+              
+              // Activity metrics (40 points)
+              score += Math.min(issues.length * 0.5, 20);
+              score += Math.min(prs.length * 1, 20);
+              
+              // Community metrics (20 points)
+              score += Math.min(contributors.length * 2, 20);
+              
+              // Response metrics (10 points)
+              if (responseTime < 24) score += 10;
+              else if (responseTime < 72) score += 5;
+              
+              const percentage = Math.round((score / maxScore) * 100);
+              
+              if (percentage >= 80) return `**Excellent (${percentage}%)** - Strong community engagement and activity`;
+              else if (percentage >= 60) return `**Good (${percentage}%)** - Healthy community with room for growth`;
+              else if (percentage >= 40) return `**Fair (${percentage}%)** - Some engagement, needs improvement`;
+              else return `**Needs Attention (${percentage}%)** - Low engagement, requires community building`;
+            }
+            
+            function generateEngagementRecommendations(repo, issues, prs, contributors, responseTime) {
+              const recommendations = [];
+              
+              if (repo.stargazers_count < 10) {
+                recommendations.push('- **Increase Visibility:** Promote the project on social media and developer communities');
+              }
+              
+              if (repo.forks_count < 5) {
+                recommendations.push('- **Encourage Forks:** Create beginner-friendly content to encourage experimentation');
+              }
+              
+              if (issues.length < 10) {
+                recommendations.push('- **Create Issues:** Add good first issues and feature requests to encourage participation');
+              }
+              
+              if (prs.length < 5) {
+                recommendations.push('- **PR Templates:** Improve PR templates to make contribution easier');
+              }
+              
+              if (contributors.length < 3) {
+                recommendations.push('- **Mentorship:** Establish mentorship program for new contributors');
+              }
+              
+              if (responseTime > 72) {
+                recommendations.push('- **Response Time:** Improve response time to issues and PRs');
+              }
+              
+              return recommendations.length > 0 ? recommendations.join('\n') : '- **Maintain Excellence:** Current engagement levels are excellent';
+            }
+            
+            function analyzeTrends(issues, prs) {
+              const recentIssues = issues.filter(i => 
+                new Date(i.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+              );
+              const recentPRs = prs.filter(pr => 
+                new Date(pr.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+              );
+              
+              const weeklyIssueRate = recentIssues.length;
+              const weeklyPRRate = recentPRs.length;
+              
+              let trend = '';
+              
+              if (weeklyIssueRate > 5) {
+                trend += '- **High Issue Activity:** Strong community engagement with issues\n';
+              } else if (weeklyIssueRate > 0) {
+                trend += '- **Moderate Issue Activity:** Steady issue creation\n';
+              } else {
+                trend += '- **Low Issue Activity:** Consider creating more issues\n';
+              }
+              
+              if (weeklyPRRate > 3) {
+                trend += '- **High PR Activity:** Active development and contributions\n';
+              } else if (weeklyPRRate > 0) {
+                trend += '- **Moderate PR Activity:** Regular contributions\n';
+              } else {
+                trend += '- **Low PR Activity:** Encourage more contributions\n';
+              }
+              
+              return trend;
+            }
+            
+            function generateCommunityHighlights(contributors, prs, issues) {
+              const highlights = [];
+              
+              // Top contributors
+              const topContributors = contributors.slice(0, 3);
+              highlights.push(`**Top Contributors:** ${topContributors.map(c => `@${c.login}`).join(', ')}`);
+              
+              // Recent activity
+              const recentPRs = prs.filter(pr => 
+                new Date(pr.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+              );
+              if (recentPRs.length > 0) {
+                highlights.push(`**Recent Activity:** ${recentPRs.length} PRs in the last week`);
+              }
+              
+              // Community growth
+              if (contributors.length > 5) {
+                highlights.push(`**Community Growth:** ${contributors.length} total contributors`);
+              }
+              
+              return highlights.length > 0 ? highlights.join('\n') : '- **Building Community:** Early stages of community development';
+            }

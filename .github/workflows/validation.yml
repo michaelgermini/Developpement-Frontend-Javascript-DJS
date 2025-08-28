@@ -1,0 +1,266 @@
+name: Project Validation
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate project structure
+        run: |
+          echo "## Project Structure Validation" > validation-report.md
+          echo "" >> validation-report.md
+          echo "**Validation Date:** $(date)" >> validation-report.md
+          echo "**Branch:** ${{ github.ref }}" >> validation-report.md
+          echo "" >> validation-report.md
+          
+          echo "### 📁 Structure Validation" >> validation-report.md
+          echo "" >> validation-report.md
+          
+          # Check required directories
+          required_dirs=("src" "src/components" "public" ".github")
+          for dir in "${required_dirs[@]}"; do
+            if [ -d "$dir" ]; then
+              echo "- ✅ $dir exists" >> validation-report.md
+            else
+              echo "- ❌ $dir missing" >> validation-report.md
+            fi
+          done
+          echo "" >> validation-report.md
+          
+          # Check required files
+          required_files=("package.json" "tsconfig.json" "vite.config.ts" "README.md" "LICENSE")
+          for file in "${required_files[@]}"; do
+            if [ -f "$file" ]; then
+              echo "- ✅ $file exists" >> validation-report.md
+            else
+              echo "- ❌ $file missing" >> validation-report.md
+            fi
+          done
+          echo "" >> validation-report.md
+          
+          # Check component files
+          echo "### 🧩 Component Validation" >> validation-report.md
+          echo "" >> validation-report.md
+          components=("DOMExamples.tsx" "EventHandling.tsx" "FunctionalProgramming.tsx" "APIIntegration.tsx" "Widgets2D.tsx" "TypeScriptExamples.tsx")
+          for component in "${components[@]}"; do
+            if [ -f "src/components/$component" ]; then
+              echo "- ✅ $component exists" >> validation-report.md
+            else
+              echo "- ❌ $component missing" >> validation-report.md
+            fi
+          done
+          echo "" >> validation-report.md
+
+      - name: Validate package.json
+        run: |
+          echo "### 📦 Package.json Validation" >> validation-report.md
+          echo "" >> validation-report.md
+          
+          # Check if package.json is valid JSON
+          if jq empty package.json 2>/dev/null; then
+            echo "- ✅ package.json is valid JSON" >> validation-report.md
+          else
+            echo "- ❌ package.json is not valid JSON" >> validation-report.md
+          fi
+          
+          # Check required fields
+          required_fields=("name" "version" "description" "main" "scripts")
+          for field in "${required_fields[@]}"; do
+            if jq -e ".$field" package.json >/dev/null 2>&1; then
+              echo "- ✅ $field field exists" >> validation-report.md
+            else
+              echo "- ❌ $field field missing" >> validation-report.md
+            fi
+          done
+          echo "" >> validation-report.md
+          
+          # Check scripts
+          required_scripts=("dev" "build" "preview")
+          for script in "${required_scripts[@]}"; do
+            if jq -e ".scripts.$script" package.json >/dev/null 2>&1; then
+              echo "- ✅ $script script exists" >> validation-report.md
+            else
+              echo "- ❌ $script script missing" >> validation-report.md
+            fi
+          done
+          echo "" >> validation-report.md
+
+      - name: Validate TypeScript configuration
+        run: |
+          echo "### 🔷 TypeScript Validation" >> validation-report.md
+          echo "" >> validation-report.md
+          
+          # Check if tsconfig.json is valid JSON
+          if jq empty tsconfig.json 2>/dev/null; then
+            echo "- ✅ tsconfig.json is valid JSON" >> validation-report.md
+          else
+            echo "- ❌ tsconfig.json is not valid JSON" >> validation-report.md
+          fi
+          
+          # Check TypeScript compilation
+          if npm run type-check; then
+            echo "- ✅ TypeScript compilation successful" >> validation-report.md
+          else
+            echo "- ❌ TypeScript compilation failed" >> validation-report.md
+          fi
+          echo "" >> validation-report.md
+
+      - name: Validate build process
+        run: |
+          echo "### 🔨 Build Validation" >> validation-report.md
+          echo "" >> validation-report.md
+          
+          # Check if project builds successfully
+          if npm run build; then
+            echo "- ✅ Project builds successfully" >> validation-report.md
+            
+            # Check if dist directory was created
+            if [ -d "dist" ]; then
+              echo "- ✅ Build output directory created" >> validation-report.md
+              
+              # Check for main files
+              if [ -f "dist/index.html" ]; then
+                echo "- ✅ index.html generated" >> validation-report.md
+              else
+                echo "- ❌ index.html not found in build output" >> validation-report.md
+              fi
+              
+              if [ -f "dist/assets/index-"*".js" ]; then
+                echo "- ✅ JavaScript bundle generated" >> validation-report.md
+              else
+                echo "- ❌ JavaScript bundle not found" >> validation-report.md
+              fi
+            else
+              echo "- ❌ Build output directory not created" >> validation-report.md
+            fi
+          else
+            echo "- ❌ Project build failed" >> validation-report.md
+          fi
+          echo "" >> validation-report.md
+
+      - name: Validate educational content
+        run: |
+          echo "### 🎓 Educational Content Validation" >> validation-report.md
+          echo "" >> validation-report.md
+          
+          # Check for educational keywords in README
+          educational_keywords=("éducation" "education" "learning" "apprentissage" "tutorial" "module")
+          found_keywords=0
+          
+          for keyword in "${educational_keywords[@]}"; do
+            if grep -qi "$keyword" README.md; then
+              found_keywords=$((found_keywords + 1))
+            fi
+          done
+          
+          if [ "$found_keywords" -gt 2 ]; then
+            echo "- ✅ README contains educational content" >> validation-report.md
+          else
+            echo "- ⚠️ README could use more educational context" >> validation-report.md
+          fi
+          
+          # Check for comments in components
+          total_comments=0
+          total_lines=0
+          
+          for file in src/components/*.tsx; do
+            if [ -f "$file" ]; then
+              comment_count=$(grep -c "//" "$file" || echo "0")
+              line_count=$(wc -l < "$file")
+              total_comments=$((total_comments + comment_count))
+              total_lines=$((total_lines + line_count))
+            fi
+          done
+          
+          if [ "$total_lines" -gt 0 ]; then
+            comment_ratio=$((total_comments * 100 / total_lines))
+            if [ "$comment_ratio" -gt 5 ]; then
+              echo "- ✅ Good code documentation (${comment_ratio}% comments)" >> validation-report.md
+            else
+              echo "- ⚠️ Could use more code comments (${comment_ratio}% comments)" >> validation-report.md
+            fi
+          fi
+          echo "" >> validation-report.md
+
+      - name: Validate GitHub configuration
+        run: |
+          echo "### 🐙 GitHub Configuration Validation" >> validation-report.md
+          echo "" >> validation-report.md
+          
+          # Check for GitHub workflows
+          if [ -d ".github/workflows" ]; then
+            workflow_count=$(find .github/workflows -name "*.yml" | wc -l)
+            echo "- ✅ GitHub workflows directory exists ($workflow_count workflows)" >> validation-report.md
+          else
+            echo "- ❌ GitHub workflows directory missing" >> validation-report.md
+          fi
+          
+          # Check for issue templates
+          if [ -d ".github/ISSUE_TEMPLATE" ]; then
+            template_count=$(find .github/ISSUE_TEMPLATE -name "*.md" | wc -l)
+            echo "- ✅ Issue templates exist ($template_count templates)" >> validation-report.md
+          else
+            echo "- ⚠️ Issue templates directory missing" >> validation-report.md
+          fi
+          
+          # Check for CODEOWNERS
+          if [ -f ".github/CODEOWNERS" ]; then
+            echo "- ✅ CODEOWNERS file exists" >> validation-report.md
+          else
+            echo "- ⚠️ CODEOWNERS file missing" >> validation-report.md
+          fi
+          echo "" >> validation-report.md
+
+      - name: Generate validation summary
+        run: |
+          echo "### 📊 Validation Summary" >> validation-report.md
+          echo "" >> validation-report.md
+          
+          # Count successes and failures
+          success_count=$(grep -c "✅" validation-report.md || echo "0")
+          failure_count=$(grep -c "❌" validation-report.md || echo "0")
+          warning_count=$(grep -c "⚠️" validation-report.md || echo "0")
+          
+          echo "**Validation Results:**" >> validation-report.md
+          echo "- ✅ Passed: $success_count" >> validation-report.md
+          echo "- ❌ Failed: $failure_count" >> validation-report.md
+          echo "- ⚠️ Warnings: $warning_count" >> validation-report.md
+          echo "" >> validation-report.md
+          
+          if [ "$failure_count" -eq 0 ]; then
+            echo "**Overall Status:** ✅ All validations passed" >> validation-report.md
+          else
+            echo "**Overall Status:** ❌ Some validations failed" >> validation-report.md
+          fi
+          echo "" >> validation-report.md
+          
+          echo "### 🎯 Recommendations" >> validation-report.md
+          echo "- Continue maintaining high code standards" >> validation-report.md
+          echo "- Keep documentation up to date" >> validation-report.md
+          echo "- Regular dependency updates" >> validation-report.md
+          echo "- Monitor educational content quality" >> validation-report.md
+
+      - name: Upload validation report
+        uses: actions/upload-artifact@v3
+        with:
+          name: validation-report
+          path: validation-report.md
+          retention-days: 30

@@ -1,0 +1,52 @@
+name: Create Labels
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  create-labels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const yaml = require('js-yaml');
+            
+            try {
+              const labelsFile = fs.readFileSync('.github/labels.yml', 'utf8');
+              const labels = yaml.load(labelsFile);
+              
+              for (const label of labels.labels) {
+                try {
+                  await github.rest.issues.createLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    name: label.name,
+                    color: label.color,
+                    description: label.description
+                  });
+                  console.log(`Created label: ${label.name}`);
+                } catch (error) {
+                  if (error.status === 422) {
+                    // Label already exists, update it
+                    await github.rest.issues.updateLabel({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      name: label.name,
+                      color: label.color,
+                      description: label.description
+                    });
+                    console.log(`Updated label: ${label.name}`);
+                  } else {
+                    console.error(`Error with label ${label.name}:`, error.message);
+                  }
+                }
+              }
+            } catch (error) {
+              console.error('Error reading labels file:', error.message);
+            }

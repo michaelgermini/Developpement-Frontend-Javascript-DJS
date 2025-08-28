@@ -1,0 +1,305 @@
+name: Contributor Onboarding
+
+on:
+  pull_request:
+    types: [opened, reopened]
+  issues:
+    types: [opened]
+
+jobs:
+  welcome-contributor:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.user.type == 'User' || github.event.issue.user.type == 'User'
+    steps:
+      - name: Welcome new contributor
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: contributor } = await github.rest.users.getByUsername({
+              username: context.actor
+            });
+            
+            const { data: contributions } = await github.rest.repos.listContributors({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            
+            const isNewContributor = !contributions.some(c => c.login === context.actor);
+            
+            if (isNewContributor) {
+              const welcomeMessage = `## 🎉 Welcome to the project, @${context.actor}!
+              
+              Thank you for your contribution! We're excited to have you join our community.
+              
+              ### 📋 Quick Start Guide
+              
+              **For Pull Requests:**
+              - ✅ Ensure all tests pass
+              - ✅ Follow our coding standards
+              - ✅ Update documentation if needed
+              - ✅ Add appropriate labels
+              
+              **For Issues:**
+              - ✅ Provide clear description
+              - ✅ Include reproduction steps
+              - ✅ Specify environment details
+              
+              ### 🛠️ Development Setup
+              
+              \`\`\`bash
+              # Clone the repository
+              git clone https://github.com/${context.repo.owner}/${context.repo.repo}.git
+              cd ${context.repo.repo}
+              
+              # Install dependencies
+              npm install
+              
+              # Start development server
+              npm run dev
+              
+              # Run tests
+              npm test
+              
+              # Check code quality
+              npm run lint
+              npm run type-check
+              \`\`\`
+              
+              ### 📚 Learning Resources
+              
+              - **Module Overview:** Check out our [README.md](./README.md) for project structure
+              - **Contributing Guidelines:** See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed instructions
+              - **Code of Conduct:** Review our [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
+              - **Security Policy:** Read our [SECURITY.md](./SECURITY.md)
+              
+              ### 🎓 Educational Focus
+              
+              This project is designed for learning frontend development with JavaScript/TypeScript. Each component demonstrates specific concepts:
+              
+              - **DOMExamples:** DOM manipulation and JavaScript objects
+              - **EventHandling:** Mouse, keyboard, and form events
+              - **FunctionalProgramming:** Pure functions and array methods
+              - **APIIntegration:** REST API consumption
+              - **Widgets2D:** HTML5 Canvas and Chart.js
+              - **TypeScriptExamples:** Advanced TypeScript features
+              
+              ### 🤝 Community
+              
+              - Join our discussions in issues and pull requests
+              - Ask questions - we're here to help!
+              - Share your learning journey
+              
+              ### 🏷️ Labels
+              
+              We use labels to categorize contributions:
+              - \`good first issue\` - Perfect for newcomers
+              - \`help wanted\` - Looking for contributors
+              - \`documentation\` - Documentation improvements
+              - \`enhancement\` - New features
+              - \`bug\` - Bug fixes
+              - \`education\` - Educational content
+              
+              Welcome aboard! 🚀`;
+              
+              if (context.eventName === 'pull_request') {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.payload.pull_request.number,
+                  body: welcomeMessage
+                });
+              } else if (context.eventName === 'issues') {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.payload.issue.number,
+                  body: welcomeMessage
+                });
+              }
+            }
+
+  auto-label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Auto-label based on content
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = [];
+            
+            if (context.eventName === 'pull_request') {
+              const { title, body, files } = context.payload.pull_request;
+              const content = `${title} ${body}`.toLowerCase();
+              
+              // Check for educational content
+              if (content.includes('education') || content.includes('learning') || 
+                  content.includes('tutorial') || content.includes('example')) {
+                labels.push('education');
+              }
+              
+              // Check for documentation
+              if (content.includes('readme') || content.includes('docs') || 
+                  content.includes('documentation') || content.includes('comment')) {
+                labels.push('documentation');
+              }
+              
+              // Check for new features
+              if (content.includes('feature') || content.includes('enhancement') || 
+                  content.includes('add') || content.includes('new')) {
+                labels.push('enhancement');
+              }
+              
+              // Check for bug fixes
+              if (content.includes('fix') || content.includes('bug') || 
+                  content.includes('issue') || content.includes('problem')) {
+                labels.push('bug');
+              }
+              
+              // Check file types
+              const hasDocs = files.some(f => f.filename.endsWith('.md'));
+              const hasCode = files.some(f => f.filename.endsWith('.ts') || f.filename.endsWith('.tsx'));
+              
+              if (hasDocs && !labels.includes('documentation')) {
+                labels.push('documentation');
+              }
+              
+              if (hasCode && !labels.includes('enhancement')) {
+                labels.push('enhancement');
+              }
+              
+            } else if (context.eventName === 'issues') {
+              const { title, body } = context.payload.issue;
+              const content = `${title} ${body}`.toLowerCase();
+              
+              // Check for questions
+              if (content.includes('question') || content.includes('how') || 
+                  content.includes('what') || content.includes('why') || 
+                  content.includes('?') || content.includes('help')) {
+                labels.push('question');
+              }
+              
+              // Check for bug reports
+              if (content.includes('error') || content.includes('bug') || 
+                  content.includes('broken') || content.includes('not working') ||
+                  content.includes('issue') || content.includes('problem')) {
+                labels.push('bug');
+              }
+              
+              // Check for feature requests
+              if (content.includes('feature') || content.includes('enhancement') || 
+                  content.includes('add') || content.includes('new') ||
+                  content.includes('improve') || content.includes('suggestion')) {
+                labels.push('enhancement');
+              }
+              
+              // Check for educational content
+              if (content.includes('education') || content.includes('learning') || 
+                  content.includes('tutorial') || content.includes('example')) {
+                labels.push('education');
+              }
+            }
+            
+            // Add labels if any were determined
+            if (labels.length > 0) {
+              const issueNumber = context.eventName === 'pull_request' 
+                ? context.payload.pull_request.number 
+                : context.payload.issue.number;
+                
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                labels: labels
+              });
+            }
+
+  assign-mentor:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.user.type == 'User'
+    steps:
+      - name: Assign mentor for new contributors
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: contributions } = await github.rest.repos.listContributors({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            
+            const isNewContributor = !contributions.some(c => c.login === context.actor);
+            
+            if (isNewContributor) {
+              // Get repository collaborators
+              const { data: collaborators } = await github.rest.repos.listCollaborators({
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              });
+              
+              // Find maintainers/admins
+              const maintainers = collaborators.filter(c => 
+                c.permissions.admin || c.permissions.maintain
+              );
+              
+              if (maintainers.length > 0) {
+                // Assign a random maintainer
+                const mentor = maintainers[Math.floor(Math.random() * maintainers.length)];
+                
+                await github.rest.issues.addAssignees({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.payload.pull_request.number,
+                  assignees: [mentor.login]
+                });
+                
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.payload.pull_request.number,
+                  body: `👋 @${mentor.login} has been assigned as your mentor for this contribution. Feel free to ask questions and they'll help guide you through the process!`
+                });
+              }
+            }
+
+  check-setup:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.user.type == 'User'
+    steps:
+      - name: Check if contributor has proper setup
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: contributor } = await github.rest.users.getByUsername({
+              username: context.actor
+            });
+            
+            const hasProfile = contributor.bio || contributor.company || contributor.location;
+            const hasAvatar = contributor.avatar_url && !contributor.avatar_url.includes('identicon');
+            
+            if (!hasProfile || !hasAvatar) {
+              const setupMessage = `## 📝 Profile Setup Reminder
+              
+              Hi @${context.actor}! 👋
+              
+              To help us get to know you better, consider updating your GitHub profile:
+              
+              ### 🎯 Recommended Updates
+              
+              ${!hasProfile ? '- **Add a bio** - Tell us about your interests and expertise\n' : ''}
+              ${!hasProfile ? '- **Add your location** - Help us understand your timezone\n' : ''}
+              ${!hasProfile ? '- **Add your company/organization** - Share your professional background\n' : ''}
+              ${!hasAvatar ? '- **Upload a profile picture** - Make your contributions more personal\n' : ''}
+              
+              ### 🔗 Quick Links
+              
+              - [Edit Profile](https://github.com/settings/profile)
+              - [Profile Settings](https://github.com/settings/profile)
+              
+              This is optional but helps build a stronger community! 🌟`;
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: setupMessage
+              });
+            }

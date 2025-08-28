@@ -1,0 +1,235 @@
+name: Compliance Check
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  compliance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check license compliance
+        run: |
+          echo "## License Compliance Check" > compliance-report.md
+          echo "" >> compliance-report.md
+          echo "**Compliance Date:** $(date)" >> compliance-report.md
+          echo "**Branch:** ${{ github.ref }}" >> compliance-report.md
+          echo "" >> compliance-report.md
+          
+          echo "### 📄 License Validation" >> compliance-report.md
+          echo "" >> compliance-report.md
+          
+          # Check if LICENSE file exists
+          if [ -f "LICENSE" ]; then
+            echo "- ✅ LICENSE file exists" >> compliance-report.md
+            
+            # Check if it's MIT license
+            if grep -q "MIT License" LICENSE; then
+              echo "- ✅ MIT License detected" >> compliance-report.md
+            else
+              echo "- ⚠️ License type not confirmed as MIT" >> compliance-report.md
+            fi
+          else
+            echo "- ❌ LICENSE file missing" >> compliance-report.md
+          fi
+          
+          # Check package.json license field
+          if jq -e '.license' package.json >/dev/null 2>&1; then
+            license_value=$(jq -r '.license' package.json)
+            echo "- ✅ Package.json license field: $license_value" >> compliance-report.md
+          else
+            echo "- ❌ Package.json license field missing" >> compliance-report.md
+          fi
+          echo "" >> compliance-report.md
+
+      - name: Check security compliance
+        run: |
+          echo "### 🔒 Security Compliance" >> compliance-report.md
+          echo "" >> compliance-report.md
+          
+          # Check for security vulnerabilities
+          if npm audit --audit-level=high; then
+            echo "- ✅ No high-severity security vulnerabilities" >> compliance-report.md
+          else
+            echo "- ❌ High-severity security vulnerabilities found" >> compliance-report.md
+          fi
+          
+          # Check for known vulnerabilities
+          if npm audit --audit-level=moderate; then
+            echo "- ✅ No moderate-severity security vulnerabilities" >> compliance-report.md
+          else
+            echo "- ⚠️ Moderate-severity security vulnerabilities found" >> compliance-report.md
+          fi
+          
+          # Check for outdated dependencies
+          outdated_count=$(npm outdated --depth=0 2>/dev/null | wc -l || echo "0")
+          if [ "$outdated_count" -eq 0 ]; then
+            echo "- ✅ All dependencies are up to date" >> compliance-report.md
+          else
+            echo "- ⚠️ $outdated_count outdated dependencies" >> compliance-report.md
+          fi
+          echo "" >> compliance-report.md
+
+      - name: Check code quality compliance
+        run: |
+          echo "### 📝 Code Quality Compliance" >> compliance-report.md
+          echo "" >> compliance-report.md
+          
+          # Check linting
+          if npm run lint; then
+            echo "- ✅ Code passes linting standards" >> compliance-report.md
+          else
+            echo "- ❌ Code does not pass linting standards" >> compliance-report.md
+          fi
+          
+          # Check TypeScript compilation
+          if npm run type-check; then
+            echo "- ✅ TypeScript compilation successful" >> compliance-report.md
+          else
+            echo "- ❌ TypeScript compilation failed" >> compliance-report.md
+          fi
+          
+          # Check code formatting
+          if npm run format:check; then
+            echo "- ✅ Code formatting is consistent" >> compliance-report.md
+          else
+            echo "- ⚠️ Code formatting issues found" >> compliance-report.md
+          fi
+          echo "" >> compliance-report.md
+
+      - name: Check documentation compliance
+        run: |
+          echo "### 📚 Documentation Compliance" >> compliance-report.md
+          echo "" >> compliance-report.md
+          
+          # Check for required documentation files
+          required_docs=("README.md" "CONTRIBUTING.md" "CODE_OF_CONDUCT.md" "SECURITY.md" "CHANGELOG.md")
+          for doc in "${required_docs[@]}"; do
+            if [ -f "$doc" ]; then
+              echo "- ✅ $doc exists" >> compliance-report.md
+            else
+              echo "- ❌ $doc missing" >> compliance-report.md
+            fi
+          done
+          
+          # Check README quality
+          if [ -f "README.md" ]; then
+            readme_lines=$(wc -l < README.md)
+            if [ "$readme_lines" -gt 50 ]; then
+              echo "- ✅ README is comprehensive ($readme_lines lines)" >> compliance-report.md
+            else
+              echo "- ⚠️ README could be more detailed ($readme_lines lines)" >> compliance-report.md
+            fi
+          fi
+          echo "" >> compliance-report.md
+
+      - name: Check educational compliance
+        run: |
+          echo "### 🎓 Educational Compliance" >> compliance-report.md
+          echo "" >> compliance-report.md
+          
+          # Check for educational content
+          if grep -q "éducation\|education\|learning\|apprentissage" README.md; then
+            echo "- ✅ Educational content identified in README" >> compliance-report.md
+          else
+            echo "- ⚠️ Educational content not clearly identified" >> compliance-report.md
+          fi
+          
+          # Check for learning modules
+          module_count=$(find src/components -name "*.tsx" | wc -l)
+          if [ "$module_count" -ge 6 ]; then
+            echo "- ✅ Sufficient learning modules ($module_count components)" >> compliance-report.md
+          else
+            echo "- ⚠️ Could use more learning modules ($module_count components)" >> compliance-report.md
+          fi
+          
+          # Check for interactive examples
+          interactive_count=$(grep -r "onClick\|onChange\|onSubmit" src/ | wc -l)
+          if [ "$interactive_count" -gt 10 ]; then
+            echo "- ✅ Good number of interactive examples ($interactive_count handlers)" >> compliance-report.md
+          else
+            echo "- ⚠️ Could use more interactive examples ($interactive_count handlers)" >> compliance-report.md
+          fi
+          echo "" >> compliance-report.md
+
+      - name: Check accessibility compliance
+        run: |
+          echo "### ♿ Accessibility Compliance" >> compliance-report.md
+          echo "" >> compliance-report.md
+          
+          # Check for accessibility attributes
+          aria_count=$(grep -r "aria-" src/ | wc -l)
+          if [ "$aria_count" -gt 0 ]; then
+            echo "- ✅ Accessibility attributes found ($aria_count instances)" >> compliance-report.md
+          else
+            echo "- ⚠️ No accessibility attributes found" >> compliance-report.md
+          fi
+          
+          # Check for semantic HTML
+          semantic_count=$(grep -r "main\|nav\|section\|article\|aside\|header\|footer" src/ | wc -l)
+          if [ "$semantic_count" -gt 0 ]; then
+            echo "- ✅ Semantic HTML elements found ($semantic_count instances)" >> compliance-report.md
+          else
+            echo "- ⚠️ Limited semantic HTML usage ($semantic_count instances)" >> compliance-report.md
+          fi
+          
+          # Check for alt text
+          alt_count=$(grep -r "alt=" src/ | wc -l)
+          if [ "$alt_count" -gt 0 ]; then
+            echo "- ✅ Alt text attributes found ($alt_count instances)" >> compliance-report.md
+          else
+            echo "- ⚠️ No alt text attributes found" >> compliance-report.md
+          fi
+          echo "" >> compliance-report.md
+
+      - name: Generate compliance summary
+        run: |
+          echo "### 📊 Compliance Summary" >> compliance-report.md
+          echo "" >> compliance-report.md
+          
+          # Count compliance checks
+          pass_count=$(grep -c "✅" compliance-report.md || echo "0")
+          fail_count=$(grep -c "❌" compliance-report.md || echo "0")
+          warn_count=$(grep -c "⚠️" compliance-report.md || echo "0")
+          
+          echo "**Compliance Results:**" >> compliance-report.md
+          echo "- ✅ Passed: $pass_count" >> compliance-report.md
+          echo "- ❌ Failed: $fail_count" >> compliance-report.md
+          echo "- ⚠️ Warnings: $warn_count" >> compliance-report.md
+          echo "" >> compliance-report.md
+          
+          if [ "$fail_count" -eq 0 ]; then
+            echo "**Overall Compliance:** ✅ All compliance checks passed" >> compliance-report.md
+          else
+            echo "**Overall Compliance:** ❌ Some compliance checks failed" >> compliance-report.md
+          fi
+          echo "" >> compliance-report.md
+          
+          echo "### 🎯 Compliance Recommendations" >> compliance-report.md
+          echo "- Maintain license compliance" >> compliance-report.md
+          echo "- Regular security audits" >> compliance-report.md
+          echo "- Keep documentation up to date" >> compliance-report.md
+          echo "- Ensure accessibility standards" >> compliance-report.md
+          echo "- Monitor educational content quality" >> compliance-report.md
+
+      - name: Upload compliance report
+        uses: actions/upload-artifact@v3
+        with:
+          name: compliance-report
+          path: compliance-report.md
+          retention-days: 30

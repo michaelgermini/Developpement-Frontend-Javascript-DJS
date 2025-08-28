@@ -1,0 +1,128 @@
+name: Community Management
+
+on:
+  issues:
+    types: [opened, edited, labeled, unlabeled]
+  pull_request:
+    types: [opened, edited, labeled, unlabeled]
+
+jobs:
+  welcome-new-contributor:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'opened' && github.event.issue
+    steps:
+      - name: Welcome new contributor
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const isFirstTimeContributor = issue.author_association === 'FIRST_TIME_CONTRIBUTOR';
+            
+            if (isFirstTimeContributor) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `
+                🎉 **Welcome to the DJS Frontend Development project!**
+                
+                Thank you for your first contribution! This is an educational project designed to help students learn frontend development with JavaScript and TypeScript.
+                
+                ### 📚 Getting Started
+                - Check out our [README](https://github.com/${context.repo.owner}/${context.repo.repo}#readme) for project overview
+                - Read our [Contributing Guide](CONTRIBUTING.md) for guidelines
+                - Review our [Code of Conduct](CODE_OF_CONDUCT.md) for community standards
+                
+                ### 🎓 Educational Focus
+                This project is designed for learning, so don't hesitate to:
+                - Ask questions if something isn't clear
+                - Suggest improvements to educational content
+                - Share your learning journey
+                
+                We're here to help you learn and grow! 🌱
+                `
+              });
+            }
+
+  label-issues:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'opened'
+    steps:
+      - name: Auto-label issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const title = issue.title.toLowerCase();
+            const body = issue.body?.toLowerCase() || '';
+            const content = title + ' ' + body;
+            
+            let labels = ['needs-triage'];
+            
+            // Educational content
+            if (content.includes('learn') || content.includes('apprendre') || content.includes('tutorial')) {
+              labels.push('education', 'learning');
+            }
+            
+            // Bug reports
+            if (content.includes('bug') || content.includes('error') || content.includes('broken')) {
+              labels.push('bug');
+            }
+            
+            // Feature requests
+            if (content.includes('feature') || content.includes('enhancement') || content.includes('improvement')) {
+              labels.push('enhancement');
+            }
+            
+            // Documentation
+            if (content.includes('doc') || content.includes('readme') || content.includes('comment')) {
+              labels.push('documentation');
+            }
+            
+            // Questions
+            if (content.includes('question') || content.includes('how') || content.includes('help')) {
+              labels.push('question', 'help wanted');
+            }
+            
+            // Add labels
+            if (labels.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: labels
+              });
+            }
+
+  respond-to-questions:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'opened' && github.event.issue && contains(github.event.issue.labels.*.name, 'question')
+    steps:
+      - name: Respond to questions
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: `
+              🤔 **Question Detected**
+              
+              Thanks for your question! This is an educational project, so we encourage questions and learning.
+              
+              ### 📖 Helpful Resources
+              - [Project Documentation](https://github.com/${context.repo.owner}/${context.repo.repo}#readme)
+              - [Contributing Guide](CONTRIBUTING.md)
+              - [Code Examples](src/components/)
+              
+              ### 🎯 Next Steps
+              - Our team will review your question
+              - We'll provide a detailed response
+              - Feel free to ask follow-up questions
+              
+              Learning is a journey, and we're here to support you! 🚀
+              `
+            });

@@ -1,0 +1,324 @@
+name: Automation Tasks
+
+on:
+  schedule:
+    - cron: '0 */6 * * *' # Every 6 hours
+  workflow_dispatch:
+
+jobs:
+  auto-close-inactive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Auto-close inactive issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Get issues that haven't been updated in 30 days
+            const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+            
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+            
+            for (const issue of issues) {
+              const lastUpdated = new Date(issue.updated_at);
+              
+              if (lastUpdated < thirtyDaysAgo && !issue.labels.some(l => l.name === 'keep-open')) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  body: `This issue has been inactive for over 30 days and will be automatically closed. If this issue is still relevant, please add the \`keep-open\` label or update it with new information.`
+                });
+                
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  state: 'closed'
+                });
+              }
+            }
+
+  auto-label-prs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Auto-label pull requests
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+            
+            for (const pr of prs) {
+              const labels = [];
+              
+              // Check file types
+              const { data: files } = await github.rest.pulls.listFiles({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number
+              });
+              
+              const hasDocs = files.some(f => f.filename.endsWith('.md'));
+              const hasCode = files.some(f => f.filename.endsWith('.ts') || f.filename.endsWith('.tsx'));
+              const hasTests = files.some(f => f.filename.includes('test') || f.filename.includes('spec'));
+              
+              if (hasDocs && !pr.labels.some(l => l.name === 'documentation')) {
+                labels.push('documentation');
+              }
+              
+              if (hasTests && !pr.labels.some(l => l.name === 'testing')) {
+                labels.push('testing');
+              }
+              
+              if (hasCode && !pr.labels.some(l => l.name === 'enhancement')) {
+                labels.push('enhancement');
+              }
+              
+              // Add labels if any were determined
+              if (labels.length > 0) {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  labels: labels
+                });
+              }
+            }
+
+  auto-assign-reviewers:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Auto-assign reviewers
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+            
+            // Get repository collaborators
+            const { data: collaborators } = await github.rest.repos.listCollaborators({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            
+            const maintainers = collaborators.filter(c => 
+              c.permissions.admin || c.permissions.maintain
+            );
+            
+            for (const pr of prs) {
+              // Skip if already has reviewers
+              if (pr.requested_reviewers && pr.requested_reviewers.length > 0) {
+                continue;
+              }
+              
+              if (maintainers.length > 0) {
+                // Assign a random maintainer
+                const reviewer = maintainers[Math.floor(Math.random() * maintainers.length)];
+                
+                await github.rest.pulls.requestReviewers({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pr.number,
+                  reviewers: [reviewer.login]
+                });
+              }
+            }
+
+  auto-update-dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Check for outdated dependencies
+        run: |
+          echo "Checking for outdated dependencies..."
+          npm outdated || echo "All dependencies are up to date"
+
+      - name: Create dependency update issue
+        uses: actions/github-script@v7
+        if: failure()
+        with:
+          script: |
+            const { data: existingIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: ['dependencies']
+            });
+            
+            if (existingIssues.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: '📦 Dependency Updates Available',
+                body: `## 📦 Dependency Updates Available
+                
+                Some dependencies in this project have updates available. Consider updating them to:
+                
+                - 🔒 Improve security
+                - 🚀 Get new features
+                - 🐛 Fix bugs
+                - ⚡ Improve performance
+                
+                ### 🔍 How to Check
+                
+                Run \`npm outdated\` to see which dependencies need updates.
+                
+                ### 🔄 How to Update
+                
+                1. Run \`npm update\` for patch and minor updates
+                2. Review major updates carefully
+                3. Test thoroughly after updates
+                4. Update lockfile if needed
+                
+                ### 📋 Recommended Process
+                
+                - Create a separate PR for dependency updates
+                - Test the application thoroughly
+                - Review changelogs for breaking changes
+                - Update documentation if needed
+                
+                ---
+                
+                *This issue was automatically created. Please review and update dependencies as needed.*`,
+                labels: ['dependencies', 'maintenance', 'automation']
+              });
+            }
+
+  auto-generate-stats:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate repository statistics
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: repo } = await github.rest.repos.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'all',
+              per_page: 100
+            });
+            
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'all',
+              per_page: 100
+            });
+            
+            const { data: contributors } = await github.rest.repos.listContributors({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            
+            // Calculate statistics
+            const stats = {
+              stars: repo.stargazers_count,
+              forks: repo.forks_count,
+              issues: issues.length,
+              prs: prs.length,
+              contributors: contributors.length,
+              openIssues: issues.filter(i => i.state === 'open').length,
+              openPRs: prs.filter(pr => pr.state === 'open').length,
+              mergedPRs: prs.filter(pr => pr.merged_at).length
+            };
+            
+            // Create stats badge
+            const statsBadge = [
+              `![Repository Stats](https://img.shields.io/badge/stars-${stats.stars}-yellow?style=flat-square&logo=github)`,
+              `![Repository Stats](https://img.shields.io/badge/forks-${stats.forks}-blue?style=flat-square&logo=github)`,
+              `![Repository Stats](https://img.shields.io/badge/issues-${stats.openIssues}-red?style=flat-square&logo=github)`,
+              `![Repository Stats](https://img.shields.io/badge/contributors-${stats.contributors}-green?style=flat-square&logo=github)`
+            ].join('\n');
+            
+            // Update README if needed
+            const { data: readme } = await github.rest.repos.getContent({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              path: 'README.md'
+            });
+            
+            const readmeContent = Buffer.from(readme.content, 'base64').toString();
+            
+            // Check if stats badge already exists
+            if (!readmeContent.includes('Repository Stats')) {
+              // Add stats badge to README
+              const updatedContent = readmeContent.replace(
+                /^# .*\n/,
+                `$&${statsBadge}\n\n`
+              );
+              
+              await github.rest.repos.createOrUpdateFileContents({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                path: 'README.md',
+                message: '📊 Add repository statistics badges',
+                content: Buffer.from(updatedContent).toString('base64'),
+                sha: readme.sha
+              });
+            }
+
+  auto-cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cleanup old artifacts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Clean up old workflow artifacts (older than 30 days)
+            const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+            
+            const { data: workflows } = await github.rest.actions.listRepoWorkflows({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            
+            for (const workflow of workflows.workflows) {
+              const { data: runs } = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: workflow.id,
+                per_page: 100
+              });
+              
+              for (const run of runs.workflow_runs) {
+                const runDate = new Date(run.created_at);
+                
+                if (runDate < thirtyDaysAgo && run.status === 'completed') {
+                  try {
+                    await github.rest.actions.deleteWorkflowRun({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      run_id: run.id
+                    });
+                  } catch (error) {
+                    console.log(`Could not delete run ${run.id}: ${error.message}`);
+                  }
+                }
+              }
+            }

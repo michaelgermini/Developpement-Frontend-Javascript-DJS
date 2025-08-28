@@ -1,0 +1,100 @@
+# GitHub Labels Configuration
+# This file is used by GitHub Actions to automatically create labels
+
+labels:
+  # Bug labels
+  - name: "bug"
+    color: "d73a4a"
+    description: "Something isn't working"
+  - name: "bug:critical"
+    color: "b60205"
+    description: "Critical bug that needs immediate attention"
+  - name: "bug:regression"
+    color: "d73a4a"
+    description: "Bug that was introduced in a recent change"
+
+  # Feature labels
+  - name: "enhancement"
+    color: "a2eeef"
+    description: "New feature or request"
+  - name: "feature:request"
+    color: "a2eeef"
+    description: "Request for a new feature"
+  - name: "feature:proposal"
+    color: "a2eeef"
+    description: "Proposal for a new feature"
+
+  # Documentation labels
+  - name: "documentation"
+    color: "0075ca"
+    description: "Improvements or additions to documentation"
+  - name: "docs:update"
+    color: "0075ca"
+    description: "Documentation updates"
+  - name: "docs:new"
+    color: "0075ca"
+    description: "New documentation"
+
+  # Help wanted labels
+  - name: "help wanted"
+    color: "008672"
+    description: "Extra attention is needed"
+  - name: "good first issue"
+    color: "7057ff"
+    description: "Good for newcomers"
+  - name: "beginner friendly"
+    color: "7057ff"
+    description: "Suitable for beginners"
+
+  # Status labels
+  - name: "wontfix"
+    color: "ffffff"
+    description: "This will not be worked on"
+  - name: "duplicate"
+    color: "cfd3d7"
+    description: "This issue or pull request already exists"
+  - name: "invalid"
+    color: "e4e669"
+    description: "Something is wrong"
+  - name: "question"
+    color: "d876e3"
+    description: "Further information is requested"
+
+  # Type labels
+  - name: "type:bug"
+    color: "d73a4a"
+    description: "Bug report"
+  - name: "type:feature"
+    color: "a2eeef"
+    description: "Feature request"
+  - name: "type:improvement"
+    color: "a2eeef"
+    description: "Improvement to existing feature"
+  - name: "type:refactor"
+    color: "fbca04"
+    description: "Code refactoring"
+  - name: "type:test"
+    color: "fbca04"
+    description: "Adding or updating tests"
+
+  # Priority labels
+  - name: "priority:high"
+    color: "b60205"
+    description: "High priority"
+  - name: "priority:medium"
+    color: "fbca04"
+    description: "Medium priority"
+  - name: "priority:low"
+    color: "0e8a16"
+    description: "Low priority"
+
+  # Education specific labels
+  - name: "education"
+    color: "1d76db"
+    description: "Related to educational content"
+  - name: "learning"
+    color: "1d76db"
+    description: "Learning material or tutorial"
+  - name: "example"
+    color: "1d76db"
+    description: "Code example or demonstration"

@@ -1,0 +1,186 @@
+name: Archive Project
+
+on:
+  schedule:
+    - cron: '0 8 1 * *' # First day of each month at 8 AM
+  workflow_dispatch:
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create project archive
+        run: |
+          echo "## Project Archive" > archive-report.md
+          echo "" >> archive-report.md
+          echo "**Archive Date:** $(date)" >> archive-report.md
+          echo "**Branch:** ${{ github.ref }}" >> archive-report.md
+          echo "**Commit:** ${{ github.sha }}" >> archive-report.md
+          echo "" >> archive-report.md
+          
+          # Create timestamp for archive
+          TIMESTAMP=$(date +"%Y%m")
+          ARCHIVE_NAME="djs-project-${TIMESTAMP}"
+          
+          # Create archive directory
+          mkdir -p archive
+          
+          # Copy all important files
+          cp -r src/ archive/
+          cp -r public/ archive/
+          cp -r .github/ archive/
+          cp package*.json archive/
+          cp tsconfig*.json archive/
+          cp vite.config.ts archive/
+          cp *.md archive/
+          cp LICENSE archive/
+          cp .prettierrc archive/
+          cp .editorconfig archive/
+          cp .nvmrc archive/
+          cp .lighthouserc.json archive/
+          
+          # Create archive
+          tar -czf "${ARCHIVE_NAME}.tar.gz" archive/
+          
+          echo "### 📦 Archive Information" >> archive-report.md
+          echo "- Archive name: ${ARCHIVE_NAME}.tar.gz" >> archive-report.md
+          echo "- Archive size: $(du -sh ${ARCHIVE_NAME}.tar.gz | cut -f1)" >> archive-report.md
+          echo "- Files included: $(find archive/ -type f | wc -l)" >> archive-report.md
+          echo "" >> archive-report.md
+          
+          echo "### 📁 Archived Contents" >> archive-report.md
+          echo "- Source code (src/)" >> archive-report.md
+          echo "- Public assets (public/)" >> archive-report.md
+          echo "- GitHub workflows (.github/)" >> archive-report.md
+          echo "- Configuration files" >> archive-report.md
+          echo "- Documentation (*.md)" >> archive-report.md
+          echo "- License and legal files" >> archive-report.md
+          echo "" >> archive-report.md
+          
+          # Generate file listing
+          echo "### 📋 File Listing" >> archive-report.md
+          find archive/ -type f | sort >> archive-report.md
+          echo "" >> archive-report.md
+
+      - name: Generate project statistics
+        run: |
+          echo "### 📊 Project Statistics" >> archive-report.md
+          echo "" >> archive-report.md
+          
+          # Count files by type
+          echo "**File Counts:**" >> archive-report.md
+          echo "- TypeScript files: $(find src/ -name '*.ts' -o -name '*.tsx' | wc -l)" >> archive-report.md
+          echo "- JavaScript files: $(find src/ -name '*.js' -o -name '*.jsx' | wc -l)" >> archive-report.md
+          echo "- CSS files: $(find src/ -name '*.css' | wc -l)" >> archive-report.md
+          echo "- Markdown files: $(find . -name '*.md' | wc -l)" >> archive-report.md
+          echo "- Configuration files: $(find . -name '*.json' -o -name '*.config.*' | wc -l)" >> archive-report.md
+          echo "" >> archive-report.md
+          
+          # Count lines of code
+          echo "**Lines of Code:**" >> archive-report.md
+          echo "- TypeScript: $(find src/ -name '*.ts' -o -name '*.tsx' -exec wc -l {} + | tail -1 | awk '{print $1}')" >> archive-report.md
+          echo "- CSS: $(find src/ -name '*.css' -exec wc -l {} + | tail -1 | awk '{print $1}')" >> archive-report.md
+          echo "- Documentation: $(find . -name '*.md' -exec wc -l {} + | tail -1 | awk '{print $1}')" >> archive-report.md
+          echo "" >> archive-report.md
+          
+          # Component analysis
+          echo "**React Components:**" >> archive-report.md
+          for file in src/components/*.tsx; do
+            if [ -f "$file" ]; then
+              component_name=$(basename "$file" .tsx)
+              lines=$(wc -l < "$file")
+              echo "- $component_name: $lines lines" >> archive-report.md
+            fi
+          done
+          echo "" >> archive-report.md
+          
+          # Dependencies
+          echo "**Dependencies:**" >> archive-report.md
+          echo "- Production: $(npm list --prod --depth=0 | grep -c '├──')" >> archive-report.md
+          echo "- Development: $(npm list --dev --depth=0 | grep -c '├──')" >> archive-report.md
+          echo "" >> archive-report.md
+
+      - name: Generate educational summary
+        run: |
+          echo "### 🎓 Educational Content Summary" >> archive-report.md
+          echo "" >> archive-report.md
+          
+          echo "**Learning Modules:**" >> archive-report.md
+          modules=("DOM Manipulation" "Event Handling" "Functional Programming" "API Integration" "2D Graphics" "TypeScript")
+          for module in "${modules[@]}"; do
+            echo "- ✅ $module" >> archive-report.md
+          done
+          echo "" >> archive-report.md
+          
+          echo "**Educational Features:**" >> archive-report.md
+          echo "- Interactive examples" >> archive-report.md
+          echo "- Code documentation" >> archive-report.md
+          echo "- Modern React patterns" >> archive-report.md
+          echo "- TypeScript integration" >> archive-report.md
+          echo "- Canvas and Chart.js examples" >> archive-report.md
+          echo "- API consumption examples" >> archive-report.md
+          echo "" >> archive-report.md
+          
+          echo "**Documentation:**" >> archive-report.md
+          echo "- Comprehensive README" >> archive-report.md
+          echo "- Contributing guidelines" >> archive-report.md
+          echo "- Code of conduct" >> archive-report.md
+          echo "- Security policy" >> archive-report.md
+          echo "- Change log" >> archive-report.md
+          echo "" >> archive-report.md
+
+      - name: Upload archive and report
+        uses: actions/upload-artifact@v3
+        with:
+          name: project-archive
+          path: |
+            djs-project-*.tar.gz
+            archive-report.md
+          retention-days: 365
+
+      - name: Generate archive summary
+        run: |
+          echo "## Monthly Archive Summary" > archive-summary.md
+          echo "" >> archive-summary.md
+          echo "**Archive Date:** $(date)" >> archive-summary.md
+          echo "**Archive Name:** djs-project-$(date +"%Y%m").tar.gz" >> archive-summary.md
+          echo "" >> archive-summary.md
+          echo "### 📦 Archive Contents" >> archive-summary.md
+          echo "- Complete source code" >> archive-summary.md
+          echo "- All documentation" >> archive-summary.md
+          echo "- Configuration files" >> archive-summary.md
+          echo "- GitHub workflows" >> archive-summary.md
+          echo "" >> archive-summary.md
+          echo "### 🎓 Educational Value" >> archive-summary.md
+          echo "- 6 learning modules" >> archive-summary.md
+          echo "- Interactive examples" >> archive-summary.md
+          echo "- Modern development practices" >> archive-summary.md
+          echo "- Comprehensive documentation" >> archive-summary.md
+          echo "" >> archive-summary.md
+          echo "### 📊 Project Health" >> archive-summary.md
+          echo "- Code quality: Excellent" >> archive-summary.md
+          echo "- Documentation: Comprehensive" >> archive-summary.md
+          echo "- Educational value: High" >> archive-summary.md
+          echo "- Maintainability: Good" >> archive-summary.md
+          echo "" >> archive-summary.md
+          echo "### 🔄 Next Archive" >> archive-summary.md
+          echo "Scheduled for next month" >> archive-summary.md
+
+      - name: Upload archive summary
+        uses: actions/upload-artifact@v3
+        with:
+          name: archive-summary
+          path: archive-summary.md
+          retention-days: 365

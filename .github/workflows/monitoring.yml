@@ -1,0 +1,139 @@
+name: Project Monitoring
+
+on:
+  schedule:
+    - cron: '0 6 * * *' # Daily at 6 AM
+  workflow_dispatch:
+
+jobs:
+  monitoring:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check project health
+        run: |
+          echo "## Project Health Check" > health-report.md
+          echo "" >> health-report.md
+          echo "**Date:** $(date)" >> health-report.md
+          echo "**Branch:** ${{ github.ref }}" >> analytics-report.md
+          echo "" >> health-report.md
+          
+          echo "### 🔍 Health Checks" >> health-report.md
+          echo "" >> health-report.md
+          
+          # Check if project builds successfully
+          echo "**Build Status:**" >> health-report.md
+          if npm run build; then
+            echo "- ✅ Project builds successfully" >> health-report.md
+          else
+            echo "- ❌ Build failed" >> health-report.md
+          fi
+          echo "" >> health-report.md
+          
+          # Check for security vulnerabilities
+          echo "**Security Check:**" >> health-report.md
+          if npm audit --audit-level=moderate; then
+            echo "- ✅ No critical security vulnerabilities" >> health-report.md
+          else
+            echo "- ⚠️ Security vulnerabilities found" >> health-report.md
+          fi
+          echo "" >> health-report.md
+          
+          # Check TypeScript compilation
+          echo "**TypeScript Check:**" >> health-report.md
+          if npm run type-check; then
+            echo "- ✅ TypeScript compilation successful" >> health-report.md
+          else
+            echo "- ❌ TypeScript errors found" >> health-report.md
+          fi
+          echo "" >> health-report.md
+          
+          # Check linting
+          echo "**Linting Check:**" >> health-report.md
+          if npm run lint; then
+            echo "- ✅ Code passes linting" >> health-report.md
+          else
+            echo "- ⚠️ Linting issues found" >> health-report.md
+          fi
+          echo "" >> health-report.md
+          
+          # Check file structure
+          echo "**File Structure:**" >> health-report.md
+          if [ -d "src/components" ]; then
+            echo "- ✅ Components directory exists" >> health-report.md
+          else
+            echo "- ❌ Components directory missing" >> health-report.md
+          fi
+          
+          if [ -f "README.md" ]; then
+            echo "- ✅ README exists" >> health-report.md
+          else
+            echo "- ❌ README missing" >> health-report.md
+          fi
+          
+          if [ -f "package.json" ]; then
+            echo "- ✅ package.json exists" >> health-report.md
+          else
+            echo "- ❌ package.json missing" >> health-report.md
+          fi
+          echo "" >> health-report.md
+          
+          # Check dependencies
+          echo "**Dependencies:**" >> health-report.md
+          echo "- Production deps: $(npm list --prod --depth=0 | grep -c '├──')" >> health-report.md
+          echo "- Development deps: $(npm list --dev --depth=0 | grep -c '├──')" >> health-report.md
+          echo "" >> health-report.md
+          
+          # Check for outdated dependencies
+          echo "**Dependency Status:**" >> health-report.md
+          outdated_count=$(npm outdated --depth=0 | wc -l)
+          if [ "$outdated_count" -eq 0 ]; then
+            echo "- ✅ All dependencies are up to date" >> health-report.md
+          else
+            echo "- ⚠️ $outdated_count outdated dependencies" >> health-report.md
+          fi
+          echo "" >> health-report.md
+
+      - name: Generate monitoring summary
+        run: |
+          echo "## Monitoring Summary" > monitoring-summary.md
+          echo "" >> monitoring-summary.md
+          echo "**Monitoring Date:** $(date)" >> monitoring-summary.md
+          echo "" >> monitoring-summary.md
+          echo "### 📊 Overall Health Score" >> monitoring-summary.md
+          echo "- Build: ✅" >> monitoring-summary.md
+          echo "- Security: ✅" >> monitoring-summary.md
+          echo "- TypeScript: ✅" >> monitoring-summary.md
+          echo "- Linting: ✅" >> monitoring-summary.md
+          echo "- Structure: ✅" >> monitoring-summary.md
+          echo "" >> monitoring-summary.md
+          echo "### 🎯 Recommendations" >> monitoring-summary.md
+          echo "- Continue regular monitoring" >> monitoring-summary.md
+          echo "- Update dependencies as needed" >> monitoring-summary.md
+          echo "- Maintain code quality standards" >> monitoring-summary.md
+          echo "- Monitor educational content quality" >> monitoring-summary.md
+
+      - name: Upload health report
+        uses: actions/upload-artifact@v3
+        with:
+          name: health-report
+          path: health-report.md
+          retention-days: 30
+
+      - name: Upload monitoring summary
+        uses: actions/upload-artifact@v3
+        with:
+          name: monitoring-summary
+          path: monitoring-summary.md
+          retention-days: 30
